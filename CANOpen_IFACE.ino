@@ -145,12 +145,12 @@ float H_Regs[] = {       2,       5,       0,       0,       0,       0,       0
 #define IFACE_module      H_Regs[46]
 
 typedef struct {
-  bool *ACDC;  // AC
-  bool *HVT_auto;  // HVT_auto
-  float *minutes;   // minutes
+  CoilData *ACDC;
+  CoilData *HVT_auto;
+  float *minutes;
 } Start_parameters_t;
 
-Start_parameters_t HVT_Start_parameters = {.ACDC = H_Coils.l , .HVT_auto = &(bool*)H_Coils[31], .minutes = &H_Regs[30]};
+Start_parameters_t HVT_Start_parameters = {.ACDC = &H_Coils + 30, .HVT_auto = &H_Coils + 31, .minutes = &H_Regs[30]}; // Работает
 
 typedef struct {
   uint8_t Node_address;  
@@ -506,6 +506,14 @@ void HVT_timerChg() {
 void HVT_Start() {
   Serial.println(H_Coils[39]);
   Serial.println("HVT started!");
+
+  Serial.print("FROM HVT_Start_parameters! ACDC = ");
+  Serial.print((bool)&HVT_Start_parameters.ACDC);
+  Serial.print(" HVT_auto = ");
+  Serial.print((bool)&HVT_Start_parameters.HVT_auto);
+  Serial.print(" minutes = ");
+  Serial.println(*HVT_Start_parameters.minutes);
+
   xQueueSend(CAN_rx_queue, &HVT_Start_parameters, 1000);
   H_Coils.set(39, (bool)0);
   Serial.println(H_Coils[39]);
@@ -594,7 +602,7 @@ void setup() {
     return;
   }
 
-  CAN_rx_queue = xQueueCreate(1, sizeof(HVT_Start_parameters));
+  CAN_rx_queue = xQueueCreate(1, sizeof(Start_parameters_t));
 
   Serial2.begin(115200, SERIAL_8N1, GPIO_NUM_16, GPIO_NUM_17);  // поменял местами рх тх!
 
@@ -834,12 +842,22 @@ void CAN_tx_code(void *pvParameters) {
   Start_parameters_t HVT_Start_parameters2;
   for (;;) {
     xQueueReceive(CAN_rx_queue, &HVT_Start_parameters2, portMAX_DELAY);
-    Serial.print("ACDC = ");
-    Serial.println((bool)&HVT_Start_parameters2.ACDC);
+    Serial.print("OD!  ACDC = ");
+    Serial.print(H_Coils[30]);
+    Serial.print("  ");
     Serial.print("HVT_auto = ");
-    Serial.println((bool)&HVT_Start_parameters2.HVT_auto);
+    Serial.print(H_Coils[31]);
+    Serial.print("  ");
     Serial.print("minutes = ");
+    Serial.println(H_Regs[30]);
+
+    Serial.print("HVT_Start_parameters2! ACDC = ");
+    Serial.print((bool)&HVT_Start_parameters2.ACDC);
+    Serial.print(" HVT_auto = ");
+    Serial.print((bool)&HVT_Start_parameters2.HVT_auto);
+    Serial.print(" minutes = ");
     Serial.println(*HVT_Start_parameters2.minutes);
+    
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
